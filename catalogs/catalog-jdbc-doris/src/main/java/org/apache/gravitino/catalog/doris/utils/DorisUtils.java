@@ -44,17 +44,16 @@ import org.slf4j.LoggerFactory;
 
 public final class DorisUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(DorisUtils.class);
-  private static final Pattern PARTITION_INFO_PATTERN =
-      Pattern.compile("PARTITION BY \\b(LIST|RANGE)\\b\\((.+)\\)");
+  private static final Pattern PARTITION_INFO_PATTERN = Pattern.compile("PARTITION BY \\b(LIST|RANGE)\\b\\((.+)\\)");
 
-  private static final Pattern DISTRIBUTION_INFO_PATTERN =
-      Pattern.compile(
-          "DISTRIBUTED BY\\s+(HASH|RANDOM)\\s*(\\(([^)]+)\\))?\\s*(BUCKETS\\s+(\\d+|AUTO))?");
+  private static final Pattern DISTRIBUTION_INFO_PATTERN = Pattern.compile(
+      "DISTRIBUTED BY\\s+(HASH|RANDOM)\\s*(\\(([^)]+)\\))?\\s*(BUCKETS\\s+(\\d+|AUTO))?");
 
   private static final String LIST_PARTITION = "LIST";
   private static final String RANGE_PARTITION = "RANGE";
 
-  private DorisUtils() {}
+  private DorisUtils() {
+  }
 
   // convert Map<String, String> properties to SQL String
   public static String generatePropertiesSql(Map<String, String> properties) {
@@ -103,16 +102,14 @@ public final class DorisUtils {
         if (matcher.matches()) {
           String partitionType = matcher.group(1);
           String partitionInfoString = matcher.group(2);
-          String[] columns =
-              Arrays.stream(partitionInfoString.split(", "))
-                  .map(s -> s.substring(1, s.length() - 1))
-                  .toArray(String[]::new);
+          String[] columns = Arrays.stream(partitionInfoString.split(", "))
+              .map(s -> s.substring(1, s.length() - 1))
+              .toArray(String[]::new);
           if (LIST_PARTITION.equals(partitionType)) {
-            String[][] filedNames =
-                Arrays.stream(columns).map(s -> new String[] {s}).toArray(String[][]::new);
+            String[][] filedNames = Arrays.stream(columns).map(s -> new String[] { s }).toArray(String[][]::new);
             return Optional.of(Transforms.list(filedNames));
           } else if (RANGE_PARTITION.equals(partitionType)) {
-            return Optional.of(Transforms.range(new String[] {columns[0]}));
+            return Optional.of(Transforms.range(new String[] { columns[0] }));
           }
         }
       }
@@ -126,11 +123,17 @@ public final class DorisUtils {
   /**
    * Generate sql fragment that create partition in Apache Doris.
    *
-   * <p>The sql fragment looks like "PARTITION {partitionName} VALUES {values}", for example:
+   * <p>
+   * The sql fragment looks like "PARTITION {partitionName} VALUES {values}", for
+   * example:
    *
-   * <pre>PARTITION `p20240724` VALUES LESS THAN ("2024-07-24")</pre>
+   * <pre>
+   * PARTITION `p20240724` VALUES LESS THAN ("2024-07-24")
+   * </pre>
    *
-   * <pre>PARTITION `p20240724_v1` VALUES IN ("2024-07-24", "v1")</pre>
+   * <pre>
+   * PARTITION `p20240724_v1` VALUES IN ("2024-07-24", "v1")
+   * </pre>
    *
    * @param partition The partition to be created.
    * @return The partition sql fragment.
@@ -174,12 +177,11 @@ public final class DorisUtils {
     for (Literal<?>[] part : lists) {
       String values;
       if (part.length > 1) {
-        values =
-            String.format(
-                "(%s)",
-                Arrays.stream(part)
-                    .map(p -> "\"" + p.value() + "\"")
-                    .collect(Collectors.joining(",")));
+        values = String.format(
+            "(%s)",
+            Arrays.stream(part)
+                .map(p -> "\"" + p.value() + "\"")
+                .collect(Collectors.joining(",")));
       } else {
         values = String.format("\"%s\"", part[0].value());
       }
@@ -195,13 +197,12 @@ public final class DorisUtils {
 
       // For Random distribution, no need to specify distribution columns.
       String distributionColumns = matcher.group(3);
-      String[] columns =
-          Objects.equals(distributionColumns, null)
-              ? new String[] {}
-              : Arrays.stream(distributionColumns.split(","))
-                  .map(String::trim)
-                  .map(f -> f.substring(1, f.length() - 1))
-                  .toArray(String[]::new);
+      String[] columns = Objects.equals(distributionColumns, null)
+          ? new String[] {}
+          : Arrays.stream(distributionColumns.split(","))
+              .map(String::trim)
+              .map(f -> f.substring(1, f.length() - 1))
+              .toArray(String[]::new);
 
       // Default bucket number is 1, auto is -1.
       int bucketNum = extractBucketNum(matcher);
@@ -211,7 +212,7 @@ public final class DorisUtils {
           .withNumber(bucketNum)
           .withExpressions(
               Arrays.stream(columns)
-                  .map(col -> NamedReference.field(new String[] {col}))
+                  .map(col -> NamedReference.field(new String[] { col }))
                   .toArray(NamedReference[]::new))
           .build();
     }
@@ -221,13 +222,12 @@ public final class DorisUtils {
 
   private static int extractBucketNum(Matcher matcher) {
     int bucketNum = 1;
-    if (matcher.find(5)) {
-      String bucketValue = matcher.group(5);
+    String bucketValue = matcher.group(5);
+    if (bucketValue != null && !bucketValue.trim().isEmpty()) {
       // Use -1 to indicate auto bucket.
-      bucketNum =
-          bucketValue.trim().toUpperCase().equals("AUTO")
-              ? Distributions.AUTO
-              : Integer.valueOf(bucketValue);
+      bucketNum = bucketValue.trim().toUpperCase().equals("AUTO")
+          ? Distributions.AUTO
+          : Integer.valueOf(bucketValue);
     }
     return bucketNum;
   }
